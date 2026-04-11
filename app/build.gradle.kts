@@ -8,7 +8,7 @@ android {
     compileSdk = 36
     defaultConfig {
         applicationId = "io.github.auag0.hidemocklocation"
-        minSdk = 23
+        minSdk = 26
         targetSdk = 36
         versionCode = 5
         versionName = "1.2.2"
@@ -45,6 +45,5 @@ android {
 }
 
 dependencies {
-    compileOnly(libs.xposed.api)
-    compileOnly(libs.xposed.api.sources)
+    compileOnly(libs.libxposed.api)
 }

@@ -1,83 +1,74 @@
 package io.github.auag0.hidemocklocation
 
+import android.annotation.SuppressLint
 import android.os.Bundle
-import de.robv.android.xposed.IXposedHookLoadPackage
-import de.robv.android.xposed.XC_MethodHook
-import de.robv.android.xposed.XC_MethodReplacement
-import de.robv.android.xposed.XC_MethodReplacement.returnConstant
-import de.robv.android.xposed.XposedBridge.hookAllMethods
-import de.robv.android.xposed.XposedHelpers.findClass
-import de.robv.android.xposed.XposedHelpers.getIntField
-import de.robv.android.xposed.XposedHelpers.getObjectField
-import de.robv.android.xposed.XposedHelpers.getStaticIntField
-import de.robv.android.xposed.XposedHelpers.setIntField
-import de.robv.android.xposed.XposedHelpers.setObjectField
-import de.robv.android.xposed.callbacks.XC_LoadPackage
-import io.github.auag0.hidemocklocation.XposedUtils.invokeOriginalMethod
+import io.github.libxposed.api.XposedInterface
+import io.github.libxposed.api.XposedModule
+import io.github.libxposed.api.XposedModuleInterface
 
-class Main : IXposedHookLoadPackage {
-    override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
-        hookLocationMethods(lpparam.classLoader)
-        if (lpparam.packageName != "android") {
-            hookSettingsMethods(lpparam.classLoader)
+class Main : XposedModule() {
+    override fun onPackageReady(param: XposedModuleInterface.PackageReadyParam) {
+        hookLocationMethods(param.classLoader)
+        if (param.packageName != "android") {
+            hookSettingsMethods(param.classLoader)
         }
     }
 
+    @SuppressLint("SoonBlockedPrivateApi")
     private fun hookLocationMethods(classLoader: ClassLoader) {
-        val locationClass = findClass(
-            "android.location.Location",
-            classLoader
-        )
-        // Hooked android.location.Location isFromMockProvider()
-        hookAllMethods(locationClass, "isFromMockProvider", returnConstant(false))
-        // Hooked android.location.Location isMock()
-        hookAllMethods(locationClass, "isMock", returnConstant(false))
-        // Hooked android.location.Location setIsFromMockProvider()
-        hookAllMethods(locationClass, "setIsFromMockProvider", object : XC_MethodHook() {
-            override fun beforeHookedMethod(param: MethodHookParam) {
-                val isFromMockProvider = param.args[0] as Boolean?
-                if (isFromMockProvider == true) {
-                    param.args[0] = false
-                }
-            }
-        })
-        // Hooked android.location.Location setMock()
-        hookAllMethods(locationClass, "setMock", object : XC_MethodHook() {
-            override fun beforeHookedMethod(param: MethodHookParam) {
-                val mock = param.args[0] as Boolean?
-                if (mock == true) {
-                    param.args[0] = false
-                }
-            }
-        })
-        // Hooked android.location.Location getExtras()
-        hookAllMethods(locationClass, "getExtras", object : XC_MethodReplacement() {
-            override fun replaceHookedMethod(param: MethodHookParam): Bundle? {
-                var extras: Bundle? = param.invokeOriginalMethod() as Bundle?
-                extras = getPatchedBundle(extras)
-                return extras
-            }
-        })
-        // Hooked android.location.Location setExtras()
-        hookAllMethods(locationClass, "setExtras", object : XC_MethodHook() {
-            override fun beforeHookedMethod(param: MethodHookParam) {
-                val extras = param.args[0] as Bundle?
-                param.args[0] = getPatchedBundle(extras)
-            }
-        })
-        // Hooked android.location.Location set()
-        hookAllMethods(locationClass, "set", object : XC_MethodHook() {
-            val HAS_MOCK_PROVIDER_MASK = getStaticIntField(locationClass, "HAS_MOCK_PROVIDER_MASK")
-            override fun afterHookedMethod(param: MethodHookParam) {
-                var mFieldsMask = getIntField(param.thisObject, "mFieldsMask")
-                mFieldsMask = mFieldsMask and HAS_MOCK_PROVIDER_MASK.inv()
-                setIntField(param.thisObject, "mFieldsMask", mFieldsMask)
+        val locationClass = classLoader.loadClass("android.location.Location")
 
-                var mExtras = getObjectField(param.thisObject, "mExtras") as Bundle?
-                mExtras = getPatchedBundle(mExtras)
-                setObjectField(param.thisObject, "mExtras", mExtras)
+        // Hooked android.location.Location isFromMockProvider()
+        hookAllMethods(locationClass, "isFromMockProvider") { _ -> false }
+        // Hooked android.location.Location isMock()
+        hookAllMethods(locationClass, "isMock") { _ -> false }
+        // Hooked android.location.Location setIsFromMockProvider()
+        hookAllMethods(locationClass, "setIsFromMockProvider") { chain ->
+            val args = chain.args.toTypedArray()
+            val isFromMockProvider = args[0] as Boolean?
+            if (isFromMockProvider == true) {
+                args[0] = false
             }
-        })
+            chain.proceed(args)
+        }
+        // Hooked android.location.Location setMock()
+        hookAllMethods(locationClass, "setMock") { chain ->
+            val args = chain.args.toTypedArray()
+            val mock = args[0] as Boolean?
+            if (mock == true) {
+                args[0] = false
+            }
+            chain.proceed(args)
+        }
+        // Hooked android.location.Location getExtras()
+        hookAllMethods(locationClass, "getExtras") { chain ->
+            var extras: Bundle? = chain.proceed() as Bundle?
+            extras = getPatchedBundle(extras)
+            return@hookAllMethods extras
+        }
+        // Hooked android.location.Location setExtras()
+        hookAllMethods(locationClass, "setExtras") { chain ->
+            val args = chain.args.toTypedArray()
+            val extras = args[0] as Bundle?
+            args[0] = getPatchedBundle(extras)
+            chain.proceed(args)
+        }
+        // Hooked android.location.Location set()
+        hookAllMethods(locationClass, "set") { chain ->
+            val hasMockProviderMaskField = locationClass.getDeclaredField("HAS_MOCK_PROVIDER_MASK").apply { isAccessible = true }
+            val hasMockProviderMask = hasMockProviderMaskField.getInt(null)
+
+            val mFieldsMaskField = locationClass.getDeclaredField("mFieldsMask").apply { isAccessible = true }
+            var mFieldsMask = mFieldsMaskField.getInt(chain.thisObject)
+            mFieldsMask = mFieldsMask and hasMockProviderMask.inv()
+            mFieldsMaskField.setInt(chain.thisObject, mFieldsMask)
+
+            val mExtrasField = locationClass.getDeclaredField("mExtras").apply { isAccessible = true }
+            var mExtras = mExtrasField.get(chain.thisObject) as? Bundle?
+
+            mExtras = getPatchedBundle(mExtras)
+            mExtrasField.set(chain.thisObject, mExtras)
+        }
     }
 
     private fun hookSettingsMethods(classLoader: ClassLoader) {
@@ -89,21 +80,15 @@ class Main : IXposedHookLoadPackage {
             "android.provider.Settings.NameValueCache"
         )
         settingsClassNames.forEach {
-            val clazz = findClass(it, classLoader)
-            hookAllMethods(clazz, "getStringForUser", object : XC_MethodReplacement() {
-                override fun replaceHookedMethod(param: MethodHookParam): Any? {
-                    val name: String? = param.args[1] as? String?
-                    return when (name) {
-                        "mock_location" -> "0"
-                        else -> try {
-                            param.invokeOriginalMethod()
-                        } catch (e: Throwable) {
-                            param.throwable = e
-                            null
-                        }
-                    }
+            val clazz = classLoader.loadClass(it)
+            hookAllMethods(clazz, "getStringForUser") { chain ->
+                val args = chain.args.toTypedArray()
+                val name: String? = args[1] as? String?
+                return@hookAllMethods when (name) {
+                    "mock_location" -> "0"
+                    else -> chain.proceed()
                 }
-            })
+            }
         }
     }
 
@@ -118,5 +103,11 @@ class Main : IXposedHookLoadPackage {
             origBundle.putBoolean("mockLocation", false)
         }
         return origBundle
+    }
+
+    private fun hookAllMethods(clazz: Class<*>, methodName: String, hooker: XposedInterface.Hooker) {
+        clazz.declaredMethods
+            .filter { it.name.equals(methodName) }
+            .forEach { method -> hook(method).intercept(hooker) }
     }
 }
