@@ -74,7 +74,7 @@ class Main : XposedModule() {
     }
 
     private fun hookSettingsMethods(classLoader: ClassLoader) {
-        val clazz = classLoader.loadClass("android.provider.Settings.Secure")
+        val clazz = classLoader.loadClass($$"android.provider.Settings$Secure")
         hookAllMethods(clazz, "getStringForUser") { chain ->
             val args = chain.args.toTypedArray()
             val name: String? = args[1] as? String?
