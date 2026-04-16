@@ -10,8 +10,8 @@ android {
         applicationId = "io.github.auag0.hidemocklocation"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "2.1.0"
+        versionCode = 8
+        versionName = "2.2.0"
     }
     signingConfigs {
         create("release") {
