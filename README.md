@@ -44,5 +44,8 @@
 `adb shell appops set <MOCK_LOCATION_APP_PKG> android:mock_location deny`
 > **Note:** For rooted devices using a terminal emulator on the device itself, omit the `adb shell` prefix.
 
+## Disclaimer
+**Use this module at your own risk.** The developer assumes no responsibility for any damage, data loss, or issues caused by the use of this software.
+
 ## Credits & References
 [ThePieMonster#HideMockLocation](https://github.com/ThePieMonster/HideMockLocation)
