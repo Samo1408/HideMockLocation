@@ -10,8 +10,13 @@ import io.github.libxposed.api.XposedModuleInterface
 class Main : XposedModule() {
     override fun onPackageReady(param: XposedModuleInterface.PackageReadyParam) {
         hookLocationMethods(param.classLoader)
-        hookSettingsMethods(param.classLoader)
         hookAppOpsMethods(param.classLoader)
+
+        if (param.packageName == "com.android.providers.settings") {
+            hookSettingsProviderMethods(param.classLoader)
+        } else if (param.packageName != "android") {
+            hookSettingsMethods(param.classLoader)
+        }
     }
 
     @SuppressLint("SoonBlockedPrivateApi", "BlockedPrivateApi")
@@ -106,6 +111,27 @@ class Main : XposedModule() {
                 }
                 chain.proceed()
             }
+        }
+    }
+
+    @SuppressLint("PrivateApi")
+    private fun hookSettingsProviderMethods(classLoader: ClassLoader) {
+        val settingsProviderClass = runCatching {
+            classLoader.loadClass("com.android.providers.settings.SettingsProvider")
+        }.getOrNull() ?: return
+
+        hookAllMethods(settingsProviderClass, "call") { chain ->
+            val method = chain.args.getOrNull(0) as? String?
+            val name = chain.args.getOrNull(1) as? String?
+            val result = chain.proceed() as? Bundle?
+            if (method == "GET_secure" && name == "mock_location") {
+                if (result?.containsKey("value") == true) {
+                    return@hookAllMethods Bundle(result).apply {
+                        result.putString("value", "0")
+                    }
+                }
+            }
+            return@hookAllMethods result
         }
     }
 
