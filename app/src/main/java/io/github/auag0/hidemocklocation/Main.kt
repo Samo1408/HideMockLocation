@@ -127,7 +127,7 @@ class Main : XposedModule() {
             if (method == "GET_secure" && name == "mock_location") {
                 if (result?.containsKey("value") == true) {
                     return@hookAllMethods Bundle(result).apply {
-                        result.putString("value", "0")
+                        putString("value", "0")
                     }
                 }
             }
