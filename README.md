@@ -37,7 +37,7 @@
 - `com.android.server.appop.AppOpsService`
 - `com.android.server.AppOpsService`
   - `checkOperationImpl()`
-  - `checkOperation`
+  - `checkOperation()`
 
 ## How to set Mock Location app via ADB ([Stack Overflow](https://stackoverflow.com/questions/40414011/how-to-set-the-android-6-0-mock-location-app-from-adb/43747384#43747384))
 
